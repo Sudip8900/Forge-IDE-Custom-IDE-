@@ -13,10 +13,10 @@ public:
 
     void render() override;
     const char* getName() const override { return "Code Editor"; }
+    void runActiveFile(const std::string& activeDocPath);
+    void saveCurrentFile();
 
 private:
-    void runActiveFile(const std::string& activeDocPath);
-    
     std::string lastLoadedFile;
     std::vector<char> editBuffer;
     bool hasEdits = false;

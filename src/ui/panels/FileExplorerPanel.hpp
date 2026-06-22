@@ -11,7 +11,7 @@ public:
     ~FileExplorerPanel() override = default;
 
     void render() override;
-    const char* getName() const override { return "File Explorer"; }
+    const char* getName() const override { return "PROJECT"; }
 
 private:
     void renderNode(const WorkspaceFile& node);

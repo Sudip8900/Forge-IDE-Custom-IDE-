@@ -56,7 +56,7 @@ bool Engine::init(int width, int height, const std::string& title) {
     // Initialize Logger
     fs::create_directories("./logs");
     Logger::getInstance().init("./logs/forge.log");
-    FORGE_LOG_INFO("Engine", "Initializing ForgeIDE engine...");
+    FORGE_LOG_INFO("Engine", "Initializing code ZEN engine...");
 
     // Initialize GLFW
     if (!glfwInit()) {
@@ -125,6 +125,24 @@ bool Engine::init(int width, int height, const std::string& title) {
     std::string exeDir = std::string(exePath).substr(0, std::string(exePath).find_last_of("\\/"));
     static std::string iniPath = exeDir + "\\imgui.ini";
     io.IniFilename = iniPath.c_str();
+
+    // Load JetBrains Mono as the default font
+    std::string fontPath = "";
+    std::vector<std::string> fontPaths = {
+        exeDir + "\\resources\\JetBrainsMono-Regular.ttf",
+        exeDir + "\\..\\..\\resources\\JetBrainsMono-Regular.ttf",
+        "resources/JetBrainsMono-Regular.ttf",
+        "../resources/JetBrainsMono-Regular.ttf"
+    };
+    for (const auto& p : fontPaths) {
+        if (fs::exists(p)) {
+            fontPath = p;
+            break;
+        }
+    }
+    if (!fontPath.empty()) {
+        io.Fonts->AddFontFromFileTTF(fontPath.c_str(), 14.5f);
+    }
 #endif
 
     // Setup ImGui bindings
@@ -161,7 +179,7 @@ bool Engine::init(int width, int height, const std::string& title) {
     Workspace::getInstance().openProject(startFolder);
 
     isRunning = true;
-    FORGE_LOG_INFO("Engine", "ForgeIDE engine started successfully.");
+    FORGE_LOG_INFO("Engine", "code ZEN engine started successfully.");
     return true;
 }
 
@@ -223,7 +241,7 @@ void Engine::render() {
 
 void Engine::shutdown() {
     if (isRunning) {
-        FORGE_LOG_INFO("Engine", "Shutting down ForgeIDE engine...");
+        FORGE_LOG_INFO("Engine", "Shutting down code ZEN engine...");
         
         UIManager::getInstance().saveSettings();
         Workspace::getInstance().closeProject();

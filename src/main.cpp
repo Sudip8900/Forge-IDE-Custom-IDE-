@@ -2,12 +2,12 @@
 #include <iostream>
 
 int main(int argc, char *argv[]) {
-  // Instantiate core ForgeIDE engine
+  // Instantiate core code ZEN engine
   forge::Engine engine;
 
   // Initialize graphics window (1280x720)
-  if (!engine.init(1280, 720, "ForgeIDE")) {
-    std::cerr << "Fatal Error: Failed to initialize ForgeIDE core engine."
+  if (!engine.init(1280, 720, "code ZEN")) {
+    std::cerr << "Fatal Error: Failed to initialize code ZEN core engine."
               << std::endl;
     return -1;
   }

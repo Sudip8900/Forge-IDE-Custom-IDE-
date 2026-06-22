@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(ForgeIDE LANGUAGES C CXX)
+project(code-ZEN LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -100,15 +100,15 @@ if(WIN32)
     list(APPEND SOURCE_FILES resources/resources.rc)
 endif()
 
-add_executable(ForgeIDE ${SOURCE_FILES})
+add_executable(code-ZEN ${SOURCE_FILES})
 
 # Include directories
-target_include_directories(ForgeIDE PRIVATE
+target_include_directories(code-ZEN PRIVATE
     src
 )
 
 # Link dependency libraries
-target_link_libraries(ForgeIDE PRIVATE
+target_link_libraries(code-ZEN PRIVATE
     imgui
     glfw
 )
@@ -116,12 +116,12 @@ target_link_libraries(ForgeIDE PRIVATE
 # Platform specific linkages
 if(WIN32)
     # Dwmapi for native dark mode window frame, Comdlg32 for native file dialogs
-    target_link_libraries(ForgeIDE PRIVATE dwmapi comdlg32)
+    target_link_libraries(code-ZEN PRIVATE dwmapi comdlg32)
     
     # Prevent min/max macro definitions in windows.h from breaking std::min/std::max
-    target_compile_definitions(ForgeIDE PRIVATE NOMINMAX)
+    target_compile_definitions(code-ZEN PRIVATE NOMINMAX)
     
     # Build as a standard Windows console/desktop app
     # Set entry point
-    set_target_properties(ForgeIDE PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+    set_target_properties(code-ZEN PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
 endif()

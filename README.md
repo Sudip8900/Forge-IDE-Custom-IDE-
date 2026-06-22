@@ -1,6 +1,6 @@
-# ForgeIDE
+# code ZEN
 
-ForgeIDE is a modern, high-performance, lightweight integrated development environment (IDE) built using C++, OpenGL 3.3, GLFW, and the docking branch of Dear ImGui. Designed specifically for Windows, it features a native Windows pseudo-terminal integration, multi-tab code runner capabilities, and advanced layout management.
+code ZEN is a modern, high-performance, lightweight integrated development environment (IDE) built using C++, OpenGL 3.3, GLFW, and the docking branch of Dear ImGui. Designed specifically for Windows, it features a native Windows pseudo-terminal integration, multi-tab code runner capabilities, and advanced layout management.
 
 ---
 
@@ -55,7 +55,7 @@ ForgeIDE is a modern, high-performance, lightweight integrated development envir
 
 ## Build Instructions (Windows)
 
-ForgeIDE compiles on Windows using **MSVC (Microsoft Visual C++)** and the **Ninja** build system via a provided helper script `build.bat`.
+code ZEN compiles on Windows using **MSVC (Microsoft Visual C++)** and the **Ninja** build system via a provided helper script `build.bat`.
 
 ### Prerequisites
 1. **Visual Studio 2022**: Ensure the "Desktop development with C++" workload is checked.
@@ -73,19 +73,19 @@ ForgeIDE compiles on Windows using **MSVC (Microsoft Visual C++)** and the **Nin
    * Appends Visual Studio's embedded CMake/Ninja to your environment PATH if system ones are missing.
    * Runs CMake configuration with offline-friendly dependency resolution (`-DFETCHCONTENT_UPDATES_DISCONNECTED=ON`).
    * Fetches required third-party libraries (GLFW, Dear ImGui Docking) over Git or cached downloads.
-   * Compiles ForgeIDE with multi-threaded optimizations.
-   * Copies the compiled binary output to `build\Release\ForgeIDE.exe`.
+   * Compiles code-ZEN with multi-threaded optimizations.
+   * Copies the compiled binary output to `build\Release\code-ZEN.exe`.
 
 ---
 
 ## How to Run
 
 After compiling, the release executable will be available at:
-`build\Release\ForgeIDE.exe`
+`build\Release\code-ZEN.exe`
 
 Launch the app from the root directory or your terminal:
 ```cmd
-.\build\Release\ForgeIDE.exe
+.\build\Release\code-ZEN.exe
 ```
 
 ### Basic Usage Instructions

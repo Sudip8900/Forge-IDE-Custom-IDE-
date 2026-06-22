@@ -37,46 +37,42 @@ void FileExplorerPanel::render() {
         return;
     }
 
-    ImGui::Text("Workspace: %s", Workspace::getInstance().getProjectName().c_str());
-    ImGui::TextDisabled("%s", Workspace::getInstance().getProjectPath().c_str());
-
-    // File Explorer control buttons
-    ImGui::Spacing();
-    if (ImGui::Button("New File", ImVec2(75, 20))) {
-        ImGui::OpenPopup("CreateNewFilePopup");
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("New Folder", ImVec2(85, 20))) {
-        ImGui::OpenPopup("CreateNewFolderPopup");
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Refresh", ImVec2(65, 20))) {
-        Workspace::getInstance().refreshFileTreeAsync();
-    }
-
     // Modal Popup: Create New File
+    bool openCreateFile = false;
+    bool openCreateFolder = false;
+
+    // Right click on explorer background for context menu
+    if (ImGui::BeginPopupContextWindow("FileExplorerContext", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems)) {
+        if (ImGui::MenuItem("New File...")) {
+            openCreateFile = true;
+        }
+        if (ImGui::MenuItem("New Folder...")) {
+            openCreateFolder = true;
+        }
+        if (ImGui::MenuItem("Refresh Workspace")) {
+            Workspace::getInstance().refreshFileTreeAsync();
+        }
+        ImGui::EndPopup();
+    }
+
+    if (openCreateFile) ImGui::OpenPopup("CreateNewFilePopup");
+    if (openCreateFolder) ImGui::OpenPopup("CreateNewFolderPopup");
+
     if (ImGui::BeginPopup("CreateNewFilePopup")) {
         static char newFileName[128] = "";
-        ImGui::Text("File Name (relative to root):");
+        ImGui::Text("File Name:");
         ImGui::InputText("##newFileNameInput", newFileName, sizeof(newFileName));
         if (ImGui::Button("Create", ImVec2(80, 24)) && strlen(newFileName) > 0) {
             std::string prjPath = Workspace::getInstance().getProjectPath();
             std::string newFilePath = prjPath + "/" + newFileName;
-            
-            // Create parent folders if necessary (e.g. if name contains folders like src/core/main.cpp)
             fs::path p(newFilePath);
             if (p.has_parent_path()) {
                 fs::create_directories(p.parent_path());
             }
-
-            // Create empty file
             std::ofstream file(newFilePath);
             file.close();
-            
-            // Open and focus
             Workspace::getInstance().openDocument(newFilePath);
             Workspace::getInstance().refreshFileTreeAsync();
-            
             memset(newFileName, 0, sizeof(newFileName));
             ImGui::CloseCurrentPopup();
         }
@@ -87,18 +83,15 @@ void FileExplorerPanel::render() {
         ImGui::EndPopup();
     }
 
-    // Modal Popup: Create New Folder
     if (ImGui::BeginPopup("CreateNewFolderPopup")) {
         static char newFolderName[128] = "";
-        ImGui::Text("Folder Name (relative to root):");
+        ImGui::Text("Folder Name:");
         ImGui::InputText("##newFolderNameInput", newFolderName, sizeof(newFolderName));
         if (ImGui::Button("Create", ImVec2(80, 24)) && strlen(newFolderName) > 0) {
             std::string prjPath = Workspace::getInstance().getProjectPath();
             std::string newDirPath = prjPath + "/" + newFolderName;
-            
             fs::create_directories(newDirPath);
             Workspace::getInstance().refreshFileTreeAsync();
-            
             memset(newFolderName, 0, sizeof(newFolderName));
             ImGui::CloseCurrentPopup();
         }
@@ -108,9 +101,6 @@ void FileExplorerPanel::render() {
         }
         ImGui::EndPopup();
     }
-
-    ImGui::Separator();
-    ImGui::Spacing();
 
     // Trigger async background scanning every 2 seconds
     static double lastRefreshTime = 0.0;
@@ -137,23 +127,71 @@ void FileExplorerPanel::renderNode(const WorkspaceFile& node) {
     
     ImGui::PushID(node.path.c_str());
     
+    bool isActive = (!node.is_directory && Workspace::getInstance().getActiveDocument() == node.path);
+    
+    if (isActive) {
+        flags |= ImGuiTreeNodeFlags_Selected;
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.00f, 0.90f, 0.46f, 1.00f)); // Mint green active text
+    }
+
+    // Leave 3 spaces at the start of display name to draw the custom icon
+    std::string displayName = "   " + node.name;
+    
     if (!node.is_directory) {
         flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+        ImGui::TreeNodeEx(displayName.c_str(), flags);
         
-        // Highlight active document in tree view
-        if (Workspace::getInstance().getActiveDocument() == node.path) {
-            flags |= ImGuiTreeNodeFlags_Selected;
+        // Draw custom file icon over the spaces
+        ImVec2 itemPos = ImGui::GetItemRectMin();
+        float textOffset = ImGui::GetTreeNodeToLabelSpacing();
+        ImVec2 iconPos = ImVec2(itemPos.x + textOffset - 6.0f, itemPos.y + (ImGui::GetTextLineHeight() - 10.0f) * 0.5f + 1.0f);
+        
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        ImColor iconColor = isActive ? ImColor(0, 230, 118) : ImColor(156, 163, 175);
+        
+        if (node.name == "CMakeLists.txt") {
+            // Draw gear icon
+            drawList->AddCircle(ImVec2(iconPos.x + 4.5f, iconPos.y + 5.0f), 2.5f, iconColor, 12, 1.2f);
+            for (int a = 0; a < 8; a++) {
+                float angle = a * (3.14159f / 4.0f);
+                drawList->AddLine(
+                    ImVec2(iconPos.x + 4.5f + cos(angle) * 2.5f, iconPos.y + 5.0f + sin(angle) * 2.5f),
+                    ImVec2(iconPos.x + 4.5f + cos(angle) * 4.5f, iconPos.y + 5.0f + sin(angle) * 4.5f),
+                    iconColor, 1.2f
+                );
+            }
+        } else {
+            // Draw document outline
+            drawList->AddRect(iconPos, ImVec2(iconPos.x + 8, iconPos.y + 11), iconColor, 0.0f, 0, 1.2f);
+            drawList->AddLine(ImVec2(iconPos.x + 5, iconPos.y), ImVec2(iconPos.x + 8, iconPos.y + 3), iconColor, 1.2f);
         }
 
-        ImGui::TreeNodeEx(node.name.c_str(), flags);
         if (ImGui::IsItemClicked() || 
             (ImGui::IsItemHovered() && ImGui::IsMouseClicked(0)) ||
             (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))) {
             Workspace::getInstance().openDocument(node.path);
         }
+        
+        if (isActive) {
+            ImGui::PopStyleColor();
+        }
     } else {
-        // Collapsible directory folder node
-        bool isOpen = ImGui::TreeNodeEx(node.name.c_str(), flags);
+        bool isOpen = ImGui::TreeNodeEx(displayName.c_str(), flags);
+        
+        // Draw folder icon over the spaces
+        ImVec2 itemPos = ImGui::GetItemRectMin();
+        float textOffset = ImGui::GetTreeNodeToLabelSpacing();
+        ImVec2 iconPos = ImVec2(itemPos.x + textOffset - 6.0f, itemPos.y + (ImGui::GetTextLineHeight() - 10.0f) * 0.5f + 1.0f);
+        
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        ImColor folderColor = ImColor(0, 230, 118); // Green folders
+        drawList->AddRectFilled(ImVec2(iconPos.x, iconPos.y + 2), ImVec2(iconPos.x + 10, iconPos.y + 9), folderColor, 1.0f);
+        drawList->AddRectFilled(ImVec2(iconPos.x + 1, iconPos.y), ImVec2(iconPos.x + 5, iconPos.y + 3), folderColor, 1.0f);
+
+        if (isActive) {
+            ImGui::PopStyleColor();
+        }
+
         if (isOpen) {
             for (const auto& child : node.children) {
                 renderNode(child);

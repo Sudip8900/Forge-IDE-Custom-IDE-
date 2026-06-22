@@ -346,17 +346,38 @@ void EditorPanel::render() {
   // Set padding to zero for a clean workspace feel
   ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
 
-  std::string title = "Code Editor";
-  if (!activeDocPath.empty()) {
-    title += " - " + fs::path(activeDocPath).filename().string();
-  }
-
-  if (!ImGui::Begin(title.c_str(), &open, ImGuiWindowFlags_NoScrollbar)) {
+  if (!ImGui::Begin("Code Editor", &open, ImGuiWindowFlags_NoScrollbar)) {
     ImGui::PopStyleVar();
     ImGui::End();
     return;
   }
   ImGui::PopStyleVar();
+
+  // Draw tab bar for open documents
+  std::vector<std::string> openDocs = Workspace::getInstance().getOpenDocuments();
+  if (!openDocs.empty()) {
+      if (ImGui::BeginTabBar("EditorTabs", ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_AutoSelectNewTabs)) {
+          for (const auto& doc : openDocs) {
+              bool openTab = true;
+              std::string filename = fs::path(doc).filename().string();
+              bool isActive = (doc == activeDocPath);
+              ImGuiTabItemFlags tabFlags = isActive ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None;
+              
+              if (ImGui::BeginTabItem((filename + "##tab_" + doc).c_str(), &openTab, tabFlags)) {
+                  if (!isActive) {
+                      Workspace::getInstance().setActiveDocument(doc);
+                  }
+                  ImGui::EndTabItem();
+              }
+              
+              if (!openTab) {
+                  Workspace::getInstance().closeDocument(doc);
+              }
+          }
+          ImGui::EndTabBar();
+      }
+      ImGui::Spacing();
+  }
 
   if (activeDocPath.empty()) {
     // Welcome splash layout
@@ -366,7 +387,7 @@ void EditorPanel::render() {
     ImGui::PushStyleColor(ImGuiCol_Text,
                           ImVec4(0.39f, 0.40f, 0.94f, 1.00f)); // Indigo
     ImGui::SetWindowFontScale(1.8f);
-    ImGui::Text("FORGE_IDE");
+    ImGui::Text("CODE_ZEN");
     ImGui::SetWindowFontScale(1.0f);
     ImGui::PopStyleColor();
 
@@ -417,8 +438,7 @@ void EditorPanel::render() {
   if (!canSave)
     ImGui::BeginDisabled();
   if (ImGui::Button("Save", ImVec2(60, 24))) {
-    Workspace::getInstance().saveDocument(activeDocPath, editBuffer.data());
-    hasEdits = false;
+    saveCurrentFile();
   }
   if (!canSave)
     ImGui::EndDisabled();
@@ -472,6 +492,9 @@ void EditorPanel::render() {
                     ImGuiWindowFlags_HorizontalScrollbar);
   ImGui::PopStyleVar();
 
+  // Scale only the editor canvas font/size
+  ImGui::SetWindowFontScale(UIManager::getInstance().editorFontScale);
+
   // Find line offsets and max line length
   std::vector<int> lineOffsets;
   lineOffsets.push_back(0);
@@ -496,6 +519,10 @@ void EditorPanel::render() {
 
   float charWidth = ImGui::CalcTextSize("A").x;
   float lineHeight = ImGui::GetTextLineHeight();
+
+  // Dynamic layout calculation based on character width to support scaling without overlaps
+  float sepOffset = 4.5f * charWidth + 10.0f;
+  float textStartOffset = sepOffset + 6.0f;
   float viewWidth = ImGui::GetWindowWidth();
   float viewHeight = ImGui::GetWindowHeight();
   float scrollX = ImGui::GetScrollX();
@@ -506,6 +533,21 @@ void EditorPanel::render() {
   // Get active ID for cursor state
   ImGuiID editorId = ImGui::GetID(widgetId.c_str());
   ImGuiInputTextState *state = ImGui::GetInputTextState(editorId);
+
+  if (state) {
+    int cursorIdx = state->GetCursorPos();
+    int cursorLine = 0;
+    int cursorCol = 0;
+    for (int k = 0; k < cursorIdx && k < textLen; k++) {
+      if (editBuffer[k] == '\n') {
+        cursorLine++;
+        cursorCol = 0;
+      } else {
+        cursorCol++;
+      }
+    }
+    UIManager::getInstance().setCursorPos(cursorLine + 1, cursorCol + 1);
+  }
 
   // Auto scroll logic to bring cursor in view
   if (state && state->CursorFollow) {
@@ -521,7 +563,7 @@ void EditorPanel::render() {
       }
     }
     ImGuiStyle &style = ImGui::GetStyle();
-    float cursorContentX = 50.0f + cursorCol * charWidth + style.FramePadding.x;
+    float cursorContentX = textStartOffset + cursorCol * charWidth + style.FramePadding.x;
     float cursorContentY = cursorLine * lineHeight + style.FramePadding.y;
 
     if (cursorContentY < scrollY) {
@@ -557,7 +599,7 @@ void EditorPanel::render() {
       parseGeneric(editBuffer.data(), ext, themeColors);
 
   // Position cursor for the text area offset
-  ImGui::SetCursorPosX(50.0f);
+  ImGui::SetCursorPosX(textStartOffset);
 
   // Push transparent style colors for the multiline input field
   ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0, 0, 0, 0));
@@ -602,7 +644,7 @@ void EditorPanel::render() {
   float fontSize = ImGui::GetFontSize();
 
   // 1. Draw Line Numbers fixed horizontally
-  float lineNumX = ImGui::GetWindowPos().x + 8.0f;
+  float lineNumX = ImGui::GetWindowPos().x + sepOffset - 4.0f * charWidth - 4.0f;
   for (int i = 0; i < totalLines; i++) {
     float lineY = startY + i * lineHeight;
     // Check if the line is vertically visible before drawing to optimize
@@ -616,7 +658,7 @@ void EditorPanel::render() {
   }
 
   // Draw Vertical separator line
-  float sepX = ImGui::GetWindowPos().x + 44.0f;
+  float sepX = ImGui::GetWindowPos().x + sepOffset;
   drawList->AddLine(ImVec2(sepX, ImGui::GetWindowPos().y),
                     ImVec2(sepX, ImGui::GetWindowPos().y + viewHeight),
                     ImColor(themeColors.lineNumbers.x,
@@ -649,33 +691,7 @@ void EditorPanel::render() {
     }
   }
 
-  // 3. Draw Custom Cursor blinking if focused
-  if (state && ImGui::IsItemActive()) {
-    int cursorIdx = state->GetCursorPos();
-    int cursorLine = 0;
-    int cursorCol = 0;
-    for (int k = 0; k < cursorIdx && k < textLen; k++) {
-      if (editBuffer[k] == '\n') {
-        cursorLine++;
-        cursorCol = 0;
-      } else {
-        cursorCol++;
-      }
-    }
-    float cursorX = startX + cursorCol * charWidth;
-    float cursorY = startY + cursorLine * lineHeight;
 
-    // Blink cycle logic matching ImGui (0.8s on, 0.4s off, or using
-    // state->CursorAnim)
-    bool cursorVisible =
-        (state->CursorAnim < 0.0f) || (fmodf(state->CursorAnim, 1.20f) < 0.80f);
-    if (cursorVisible && cursorY + lineHeight >= ImGui::GetWindowPos().y &&
-        cursorY <= ImGui::GetWindowPos().y + viewHeight) {
-      drawList->AddRectFilled(ImVec2(cursorX, cursorY),
-                              ImVec2(cursorX + 1.5f, cursorY + lineHeight),
-                              ImColor(themeColors.text));
-    }
-  }
 
   ImGui::PopStyleVar();
   ImGui::PopStyleColor(4);
@@ -812,7 +828,7 @@ void EditorPanel::runActiveFile(const std::string &activeDocPath) {
       } else if (ext == ".html" || ext == ".htm") {
         runCmd = "cmd /c start \"\" \"" + activeDocPath + "\"";
       } else {
-        appendBoth("\n[ForgeIDE] No runner configured for extension: " + ext +
+        appendBoth("\n[code ZEN] No runner configured for extension: " + ext +
                    "\n");
         return;
       }
@@ -826,7 +842,7 @@ void EditorPanel::runActiveFile(const std::string &activeDocPath) {
       system(killCmd.c_str());
 
       std::string execCompileCmd = "cd /d \"" + fileDir + "\" && " + compileCmd;
-      appendBoth("\n[ForgeIDE] Compiling: " + filename + "...\n");
+      appendBoth("\n[code ZEN] Compiling: " + filename + "...\n");
       appendBoth("PS> " + execCompileCmd + "\n");
 
       FILE *pipe = _popen((execCompileCmd + " 2>&1").c_str(), "r");
@@ -846,7 +862,7 @@ void EditorPanel::runActiveFile(const std::string &activeDocPath) {
     if (compileSuccess && !runCmd.empty()) {
       if (ext == ".html" || ext == ".htm") {
         std::string execRunCmd = "cd /d \"" + fileDir + "\" && " + runCmd;
-        appendBoth("\n[ForgeIDE] Running: " + filename + "...\n");
+        appendBoth("\n[code ZEN] Running: " + filename + "...\n");
         appendBoth("PS> " + execRunCmd + "\n");
         FILE *runPipe = _popen((execRunCmd + " 2>&1").c_str(), "r");
         if (runPipe) {
@@ -858,7 +874,7 @@ void EditorPanel::runActiveFile(const std::string &activeDocPath) {
         } else {
           appendBoth("Error: Failed to spawn browser process.\n");
         }
-        appendBoth("\n[ForgeIDE] Execution finished.\n");
+        appendBoth("\n[code ZEN] Execution finished.\n");
       } else {
         if (TerminalPanel::instance) {
           TerminalPanel::instance->setOpen(true);
@@ -869,9 +885,17 @@ void EditorPanel::runActiveFile(const std::string &activeDocPath) {
         }
       }
     } else if (!compileSuccess) {
-      appendBoth("\n[ForgeIDE] Compilation failed. Execution aborted.\n");
+      appendBoth("\n[code ZEN] Compilation failed. Execution aborted.\n");
     }
   }).detach();
+}
+
+void EditorPanel::saveCurrentFile() {
+  std::string activeDocPath = Workspace::getInstance().getActiveDocument();
+  if (hasEdits && !activeDocPath.empty()) {
+    Workspace::getInstance().saveDocument(activeDocPath, editBuffer.data());
+    hasEdits = false;
+  }
 }
 
 } // namespace forge

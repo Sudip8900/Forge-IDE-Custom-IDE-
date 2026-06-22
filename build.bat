@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 echo ==========================================
-echo ForgeIDE MSVC Compilation Bootstrap (Ninja)
+echo code-ZEN MSVC Compilation Bootstrap (Ninja)
 echo ==========================================
 
 :: 1. Add Visual Studio's CMake and Ninja to the PATH
@@ -59,23 +59,23 @@ if exist "build\compile_commands.json" (
 )
 
 :: 6. Build the application binary
-echo Compiling ForgeIDE executable in Release mode using Ninja...
+echo Compiling code-ZEN executable in Release mode using Ninja...
 cmake --build build --parallel
 if %errorlevel% neq 0 (
-    echo FATAL ERROR: Compiler failed to build ForgeIDE binary.
+    echo FATAL ERROR: Compiler failed to build code-ZEN binary.
     exit /b %errorlevel%
 )
 
 :: Ensure build\Release directory exists and copy the executable there for compatibility
-if exist "build\ForgeIDE.exe" (
+if exist "build\code-ZEN.exe" (
     if not exist "build\Release" (
         mkdir build\Release
     )
-    copy /Y build\ForgeIDE.exe build\Release\ForgeIDE.exe >nul
+    copy /Y build\code-ZEN.exe build\Release\code-ZEN.exe >nul
 )
 
 echo ==========================================
 echo BUILD SUCCESSFUL!
-echo Binary path: build\Release\ForgeIDE.exe
+echo Binary path: build\Release\code-ZEN.exe
 echo ==========================================
 exit /b 0

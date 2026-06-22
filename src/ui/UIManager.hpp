@@ -61,6 +61,13 @@ public:
 
     std::vector<std::shared_ptr<Panel>> getPanels() { return panels; }
 
+    void setCursorPos(int line, int col) { cursorLine = line; cursorCol = col; }
+    int getCursorLine() const { return cursorLine; }
+    int getCursorCol() const { return cursorCol; }
+
+    bool resetLayout = false;
+    float editorFontScale = 1.0f;
+
 private:
     UIManager() = default;
     ~UIManager() = default;
@@ -75,6 +82,9 @@ private:
 
     std::unordered_map<std::string, std::string> customCompileCommands;
     std::unordered_map<std::string, std::string> customRunCommands;
+
+    int cursorLine = 1;
+    int cursorCol = 1;
 };
 
 } // namespace forge
